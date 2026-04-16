@@ -41,6 +41,7 @@ router.post('/register', upload.single('profile_photo'), async (req, res) => {
 
     db.run(sql, [name, email, phone, hashedPassword, userRole, category, providerExperience, profile_photo, newRefCode, initialBalance, referrerId], function (err) {
       if (err) {
+        console.error('sign up error:', err.message);
         if (err.message.includes('UNIQUE')) {
           return res.status(400).json({ message: 'Email already exists' });
         }

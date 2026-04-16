@@ -21,7 +21,7 @@ const Navbar = () => {
 
     if (user && 'Notification' in window) {
       Notification.requestPermission();
-      const socket = io('http://localhost:5000');
+      const socket = io('https://smart-service2.onrender.com');
       socket.on('booking_notification', (data) => {
          if (data.providerId === user.id || data.userId === user.id) {
             setNotificationCount(prev => prev + 1);

@@ -50,7 +50,7 @@ router.put('/:id/status', authMiddleware, restrictTo('provider', 'admin', 'user'
 
 // Update Booking to Completed with Proof Image
 router.put('/:id/complete', authMiddleware, restrictTo('provider', 'admin'), upload.single('proof_image'), async (req, res) => {
-  const proof_image = req.file ? `http://localhost:5000/uploads/${req.file.filename}` : null;
+  const proof_image = req.file ? `https://smart-service2.onrender.com/uploads/${req.file.filename}` : null;
   const warrantyDays = 7;
   const expiryDate = new Date(Date.now() + warrantyDays * 24 * 60 * 60 * 1000).toISOString();
 

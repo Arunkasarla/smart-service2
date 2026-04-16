@@ -33,11 +33,11 @@ const ServiceListing = () => {
   const fetchServices = async (overrideQuery = query) => {
     setLoading(true);
     try {
-      let url = `http://localhost:5000/api/services/search`;
+      let url = `https://smart-service2.onrender.com/api/services/search`;
       if (category || overrideQuery) {
          url += `?category=${category}&query=${overrideQuery}`;
       } else {
-         url = `http://localhost:5000/api/services`;
+         url = `https://smart-service2.onrender.com/api/services`;
       }
 
       const res = await fetch(url);
@@ -59,7 +59,7 @@ const ServiceListing = () => {
 
   const fetchRecommended = async () => {
      try {
-       const res = await fetch('http://localhost:5000/api/services/recommended');
+       const res = await fetch('https://smart-service2.onrender.com/api/services/recommended');
        const data = await res.json();
        if (Array.isArray(data)) setRecommended(data);
      } catch(err) { console.error(err); }

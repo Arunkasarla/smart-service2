@@ -22,7 +22,7 @@ const MyBookings = () => {
   }, []);
 
   const fetchBookings = () => {
-    fetch('http://localhost:5000/api/bookings/my-bookings', {
+    fetch('https://smart-service2.onrender.com/api/bookings/my-bookings', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -74,7 +74,7 @@ const MyBookings = () => {
     setSubmittingReview(true);
     
     try {
-      const res = await fetch('http://localhost:5000/api/reviews', {
+      const res = await fetch('https://smart-service2.onrender.com/api/reviews', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -182,7 +182,7 @@ const MyBookings = () => {
                            disabled={booking.warranty_revisit_requested === 1}
                            onClick={() => {
                              if(!window.confirm('Request a free revisit under warranty?')) return;
-                             fetch(`http://localhost:5000/api/bookings/${booking.id}/warranty-revisit`, {
+                             fetch(`https://smart-service2.onrender.com/api/bookings/${booking.id}/warranty-revisit`, {
                                 method: 'POST',
                                 headers: { 'Authorization': `Bearer ${token}` }
                              }).then(res => res.json()).then(data => {
@@ -195,7 +195,7 @@ const MyBookings = () => {
                      )}
                      {booking.status === 'completed' && booking.payment_method === 'cod' && (
                          <button onClick={() => {
-                            fetch(`http://localhost:5000/api/bookings/${booking.id}/status`, {
+                            fetch(`https://smart-service2.onrender.com/api/bookings/${booking.id}/status`, {
                               method: 'PUT',
                               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                               body: JSON.stringify({ status: 'paid' })

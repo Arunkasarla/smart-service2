@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
           setUser(storedUser);
           
           // Connect Socket.io
-          const newSocket = io('http://localhost:5000');
+          const newSocket = io('https://smart-service2.onrender.com');
           newSocket.emit('register_user', storedUser.id);
           setSocket(newSocket);
         }

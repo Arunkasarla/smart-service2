@@ -24,14 +24,14 @@ const BookingFlow = () => {
 
   useEffect(() => {
     // Fetch individual service details based on new V3 endpoint structure
-    fetch('http://localhost:5000/api/services')
+    fetch('https://smart-service2.onrender.com/api/services')
       .then(res => res.json())
       .then(data => {
         const found = data.find(s => s.id.toString() === serviceId);
         if (found) {
            setService(found);
            // Fetch unavailable dates for this provider!
-           fetch(`http://localhost:5000/api/provider/${found.provider_id}/blocked-dates`, {
+           fetch(`https://smart-service2.onrender.com/api/provider/${found.provider_id}/blocked-dates`, {
               headers: { 'Authorization': `Bearer ${token}` }
            }).then(r => r.json()).then(blocked => {
               if (Array.isArray(blocked)) setBlockedDates(blocked);
@@ -61,7 +61,7 @@ const BookingFlow = () => {
 
     // COD Flow (Direct Saving)
     try {
-      const response = await fetch('http://localhost:5000/api/bookings', {
+      const response = await fetch('https://smart-service2.onrender.com/api/bookings', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

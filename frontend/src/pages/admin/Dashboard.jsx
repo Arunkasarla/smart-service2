@@ -42,7 +42,7 @@ const AdminDashboard = () => {
 
   const fetchDashboardStats = async () => {
       try {
-          const res = await fetch('http://localhost:5000/api/admin/dashboard-stats', {
+          const res = await fetch('https://smart-service2.onrender.com/api/admin/dashboard-stats', {
               headers: { 'Authorization': `Bearer ${token}` }
           });
           const data = await res.json();
@@ -59,7 +59,7 @@ const AdminDashboard = () => {
 
   const fetchMainData = async () => {
       try {
-          const res = await fetch('http://localhost:5000/api/bookings/all', {
+          const res = await fetch('https://smart-service2.onrender.com/api/bookings/all', {
               headers: { 'Authorization': `Bearer ${token}` }
           });
           const data = await res.json();
@@ -99,7 +99,7 @@ const AdminDashboard = () => {
 
   const fetchProviders = async () => {
       try {
-          const res = await fetch('http://localhost:5000/api/admin/providers', {
+          const res = await fetch('https://smart-service2.onrender.com/api/admin/providers', {
               headers: { 'Authorization': `Bearer ${token}` }
           });
           const data = await res.json();
@@ -113,7 +113,7 @@ const AdminDashboard = () => {
   const handleToggleBan = async (id, currentState) => {
       if(!window.confirm(`Are you sure you want to ${currentState === 1 ? 'UNBAN' : 'BAN'} this provider?`)) return;
       
-      const res = await fetch(`http://localhost:5000/api/admin/provider/${id}/ban`, {
+      const res = await fetch(`https://smart-service2.onrender.com/api/admin/provider/${id}/ban`, {
          method: 'POST',
          headers: { 
              'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ const AdminDashboard = () => {
 
   const handleExportCSV = async () => {
      try {
-       const res = await fetch('http://localhost:5000/api/bookings/export', {
+       const res = await fetch('https://smart-service2.onrender.com/api/bookings/export', {
          headers: { 'Authorization': `Bearer ${token}` }
        });
        

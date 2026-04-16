@@ -22,7 +22,7 @@ const AdminLogin = () => {
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/admin/register';
     
     try {
-      const res = await fetch(`http://localhost:5000${endpoint}`, {
+      const res = await fetch(`https://smart-service2.onrender.com${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

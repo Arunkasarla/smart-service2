@@ -15,12 +15,12 @@ const ChatModal = ({ targetUser, isOpen, onClose }) => {
 
     // Connect automatically via isolated WebSocket Channel over port 5000 
     // to bypass the static HTML block natively.
-    socketRef.current = io('http://localhost:5000');
+    socketRef.current = io('https://smart-service2.onrender.com');
     
     socketRef.current.emit('register_user', user.id);
 
     // Fetch historical data initially
-    fetch(`http://localhost:5000/api/messages/${user.id}/${targetUser.id}`, {
+    fetch(`https://smart-service2.onrender.com/api/messages/${user.id}/${targetUser.id}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     .then(res => res.json())

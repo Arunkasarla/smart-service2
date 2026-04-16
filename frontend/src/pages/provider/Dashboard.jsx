@@ -65,7 +65,7 @@ const ProviderDashboard = () => {
 
   const fetchRequests = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/bookings/requests', {
+      const res = await fetch('https://smart-service2.onrender.com/api/bookings/requests', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -84,7 +84,7 @@ const ProviderDashboard = () => {
   };
 
   const fetchBlockedDates = () => {
-    fetch(`http://localhost:5000/api/provider/${user.id}/blocked-dates`, {
+    fetch(`https://smart-service2.onrender.com/api/provider/${user.id}/blocked-dates`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -96,7 +96,7 @@ const ProviderDashboard = () => {
   const toggleBlockDate = async (date) => {
     if(!date) return;
     const isCurrentlyBlocked = blockedDates.includes(date);
-    const res = await fetch('http://localhost:5000/api/provider/blocked-dates', {
+    const res = await fetch('https://smart-service2.onrender.com/api/provider/blocked-dates', {
        method: 'POST',
        headers: { 
          'Content-Type': 'application/json',
@@ -111,7 +111,7 @@ const ProviderDashboard = () => {
   };
 
   const handleUpdateStatus = (id, newStatus) => {
-    fetch(`http://localhost:5000/api/bookings/${id}/status`, {
+    fetch(`https://smart-service2.onrender.com/api/bookings/${id}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -133,7 +133,7 @@ const ProviderDashboard = () => {
     formData.append('proof_image', proofFile);
 
     try {
-        const res = await fetch(`http://localhost:5000/api/bookings/${completeBookingUI.id}/complete`, {
+        const res = await fetch(`https://smart-service2.onrender.com/api/bookings/${completeBookingUI.id}/complete`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -160,7 +160,7 @@ const ProviderDashboard = () => {
   const sendLocationUpdate = async (location, statusUpdate) => {
     const activeBooking = requests[0] || {};
     try {
-      await fetch('http://localhost:5000/api/location/update', {
+      await fetch('https://smart-service2.onrender.com/api/location/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({

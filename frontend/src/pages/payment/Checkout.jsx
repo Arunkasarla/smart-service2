@@ -33,7 +33,7 @@ const Checkout = () => {
                payment_method: 'online'
            };
    
-           const res = await fetch('http://localhost:5000/api/bookings', {
+           const res = await fetch('https://smart-service2.onrender.com/api/bookings', {
                method: 'POST',
                headers: {
                    'Content-Type': 'application/json',
@@ -45,7 +45,7 @@ const Checkout = () => {
            if (res.ok) {
                // Mark as 'paid' instantly since we just processed it
                const data = await res.json();
-               await fetch(`http://localhost:5000/api/bookings/${data.bookingId}/status`, {
+               await fetch(`https://smart-service2.onrender.com/api/bookings/${data.bookingId}/status`, {
                    method: 'PUT',
                    headers: {
                        'Content-Type': 'application/json',

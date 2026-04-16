@@ -28,7 +28,7 @@ router.get('/', (req, res) => {
       title: r.provider_name, 
       description: `Professional ${r.category} located at ${r.location || 'your area'} with ${r.experience || 0} years experience.`,
       price: Math.floor(Math.random() * 500) + 300, // Mock dynamic pricing in INR
-      image: r.profile_photo ? `http://localhost:5000${r.profile_photo}` : `https://source.unsplash.com/400x300/?${r.category},portrait`,
+      image: r.profile_photo ? `https://smart-service2.onrender.com${r.profile_photo}` : `https://source.unsplash.com/400x300/?${r.category},portrait`,
       experience: r.experience || 0,
       rating: r.rating.toFixed(1),
       review_count: r.review_count
@@ -72,7 +72,7 @@ router.get('/search', (req, res) => {
       title: r.provider_name,
       description: `Professional ${r.category} located at ${r.location || 'your area'}. Highly rated with ${r.experience || 0} years experience.`,
       price: Math.floor(Math.random() * 500) + 300,
-      image: r.profile_photo ? `http://localhost:5000${r.profile_photo}` : `https://source.unsplash.com/400x300/?${r.category},portrait`,
+      image: r.profile_photo ? `https://smart-service2.onrender.com${r.profile_photo}` : `https://source.unsplash.com/400x300/?${r.category},portrait`,
       experience: r.experience || 0,
       rating: r.rating.toFixed(1),
       review_count: r.review_count
@@ -139,7 +139,7 @@ router.get('/recommended', (req, res) => {
         title: r.provider_name, 
         description: `Top Recommended ${r.category} in ${r.location || 'your area'}.`,
         price,
-        image: r.profile_photo ? `http://localhost:5000${r.profile_photo}` : `https://source.unsplash.com/400x300/?${r.category},professional`,
+        image: r.profile_photo ? `https://smart-service2.onrender.com${r.profile_photo}` : `https://source.unsplash.com/400x300/?${r.category},professional`,
         experience: r.experience || 0,
         rating: r.rating.toFixed(1),
         review_count: r.review_count,

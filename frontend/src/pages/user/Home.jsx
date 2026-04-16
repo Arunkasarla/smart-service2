@@ -27,7 +27,7 @@ const Home = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/services')
+    fetch('https://smart-service2.onrender.com/api/services')
       .then(res => res.json())
       .then(data => {
         if(Array.isArray(data)) setFeaturedServices(data.slice(0, 4));

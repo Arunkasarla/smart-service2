@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import API from '../../utils/api';
 import { Mail, Lock } from 'lucide-react';
 
 const Login = () => {
@@ -18,10 +19,10 @@ const Login = () => {
 
     try {
       // Typically fetch('/api/auth/login')
-      const response = await fetch('https://smart-service2.onrender.com/api/auth/login', {
+      const response = await fetch(`${API}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password: password.trim() })
       });
 
       const data = await response.json();

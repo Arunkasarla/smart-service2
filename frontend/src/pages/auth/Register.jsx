@@ -34,11 +34,14 @@ const Register = () => {
     setLoading(true);
     setError('');
 
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    const normalizedPhone = formData.phone.trim();
+
     // V3 Form Data Mapping (Multer Integration)
     const payload = new FormData();
     payload.append('name', formData.name);
-    payload.append('email', formData.email);
-    payload.append('phone', formData.phone);
+    payload.append('email', normalizedEmail);
+    payload.append('phone', normalizedPhone);
     payload.append('password', formData.password);
     payload.append('role', formData.role);
     
@@ -53,7 +56,7 @@ const Register = () => {
     }
 
     try {
-      const response = await fetch('https://smart-service2.onrender.com/api/auth/register', {
+      const response = await fetch(`${API}/api/auth/register`, {
         method: 'POST',
         body: payload
       });

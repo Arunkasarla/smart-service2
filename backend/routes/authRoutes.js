@@ -10,8 +10,12 @@ const upload = require('../multerConfig'); // V3 Import
 
 // Register User
 router.post('/register', upload.single('profile_photo'), async (req, res) => {
-  const { name, email, phone, password, role, provider_category, experience, referral_code } = req.body;
+  let { name, email, phone, password, role, provider_category, experience, referral_code } = req.body;
   const profile_photo = req.file ? `/uploads/${req.file.filename}` : null;
+
+  email = email ? email.trim().toLowerCase() : '';
+  phone = phone ? phone.trim() : null;
+  referral_code = referral_code ? referral_code.trim().toUpperCase() : null;
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Please provide all required fields' });
@@ -137,18 +141,20 @@ router.post('/login', async (req, res) => {
   });
 
   const { email, password } = req.body;
+  const normalizedEmail = email ? email.trim().toLowerCase() : '';
+  const normalizedPassword = password ? password.trim() : '';
 
   // Validate input
-  if (!email || !password) {
+  if (!normalizedEmail || !normalizedPassword) {
     console.log('❌ LOGIN VALIDATION FAILED - Missing fields');
-    console.log('   Email provided:', !!email);
-    console.log('   Password provided:', !!password);
+    console.log('   Email provided:', !!normalizedEmail);
+    console.log('   Password provided:', !!normalizedPassword);
     return res.status(400).json({ message: 'Please provide email and password' });
   }
 
   console.log('✅ LOGIN VALIDATION PASSED');
-  console.log('   Email:', email);
-  console.log('   Password length:', password.length);
+  console.log('   Email:', normalizedEmail);
+  console.log('   Password length:', normalizedPassword.length);
 
   try {
     // Check database connection first
@@ -163,11 +169,11 @@ router.post('/login', async (req, res) => {
 
       // Now perform the actual login query
       console.log('🔍 EXECUTING USER LOOKUP QUERY...');
-      const sql = `SELECT id, name, email, password, role, referral_code, wallet_balance, is_banned FROM users WHERE email = ?`;
+      const sql = `SELECT id, name, email, password, role, referral_code, wallet_balance, is_banned FROM users WHERE LOWER(email) = ?`;
       console.log('   SQL:', sql);
-      console.log('   Email parameter:', email);
+      console.log('   Email parameter:', normalizedEmail);
 
-      db.get(sql, [email], async (err, user) => {
+      db.get(sql, [normalizedEmail], async (err, user) => {
         if (err) {
           console.error('❌ DATABASE QUERY ERROR:');
           console.error('   Error message:', err.message);
@@ -289,14 +295,15 @@ router.post('/login', async (req, res) => {
 // Admin Registration (High Security)
 router.post('/admin/register', async (req, res) => {
   try {
-    const { name, email, password, adminSecret } = req.body;
+    let { name, email, password, adminSecret } = req.body;
+    email = email ? email.trim().toLowerCase() : '';
 
     // Secure Passcode Required for Admin Registry
     if (adminSecret !== 'gravity99') {
        return res.status(403).json({ message: 'Unauthorized: Invalid Admin Secret Passcode.' });
     }
 
-    db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
+    db.get(`SELECT * FROM users WHERE LOWER(email) = ?`, [email], async (err, user) => {
       if (user) {
         return res.status(400).json({ message: 'Admin with this email already exists' });
       }

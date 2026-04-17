@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, Clock, MapPin, FileText, ChevronRight, CheckCircle2, CreditCard, Banknote } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import API from '../../utils/api';
 
 const BookingFlow = () => {
   const { serviceId } = useParams();
@@ -24,14 +25,14 @@ const BookingFlow = () => {
 
   useEffect(() => {
     // Fetch individual service details based on new V3 endpoint structure
-    fetch('https://smart-service2.onrender.com/api/services')
+    fetch(`${API}/api/services`)
       .then(res => res.json())
       .then(data => {
         const found = data.find(s => s.id.toString() === serviceId);
         if (found) {
            setService(found);
            // Fetch unavailable dates for this provider!
-           fetch(`https://smart-service2.onrender.com/api/provider/${found.provider_id}/blocked-dates`, {
+           fetch(`${API}/api/provider/${found.provider_id}/blocked-dates`, {
               headers: { 'Authorization': `Bearer ${token}` }
            }).then(r => r.json()).then(blocked => {
               if (Array.isArray(blocked)) setBlockedDates(blocked);
@@ -61,15 +62,15 @@ const BookingFlow = () => {
 
     // COD Flow (Direct Saving)
     try {
-      const response = await fetch('https://smart-service2.onrender.com/api/bookings', {
+      const response = await fetch(`${API}/api/bookings`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          service_id: service.id, // Using provider_id alias from serviceRoutes
-          provider_id: service.provider_id,
+          service_id: Number(service.id),
+          provider_id: Number(service.provider_id),
           ...formData
         })
       });

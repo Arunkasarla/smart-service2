@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CreditCard, CheckCircle2, Lock, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import API from '../../utils/api';
 
 const Checkout = () => {
   const location = useLocation();
@@ -33,7 +34,7 @@ const Checkout = () => {
                payment_method: 'online'
            };
    
-           const res = await fetch('https://smart-service2.onrender.com/api/bookings', {
+           const res = await fetch(`${API}/api/bookings`, {
                method: 'POST',
                headers: {
                    'Content-Type': 'application/json',
@@ -45,10 +46,8 @@ const Checkout = () => {
            if (res.ok) {
                // Mark as 'paid' instantly since we just processed it
                const data = await res.json();
-               await fetch(`https://smart-service2.onrender.com/api/bookings/${data.bookingId}/status`, {
-                   method: 'PUT',
-                   headers: {
-                       'Content-Type': 'application/json',
+                   const bookingId = data.bookingId || data.booking?.id;
+                   await fetch(`${API}/api/bookings/${bookingId}/status`, {
                        'Authorization': `Bearer ${token}`
                    },
                    body: JSON.stringify({ status: 'paid' })

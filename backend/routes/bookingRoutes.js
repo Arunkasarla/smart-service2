@@ -29,124 +29,180 @@ router.post('/', authMiddleware, restrictTo('user'), (req, res) => {
     });
   }
 
-  // Validate data types
-  if (isNaN(service_id) || isNaN(provider_id)) {
+  const normalizedServiceId = Number(service_id);
+  const normalizedProviderId = Number(provider_id);
+
+  // Validate numeric IDs
+  if (Number.isNaN(normalizedServiceId) || Number.isNaN(normalizedProviderId)) {
     console.error('❌ BOOKING VALIDATION FAILED - Invalid IDs:', { service_id, provider_id });
     return res.status(400).json({ message: 'service_id and provider_id must be valid numbers' });
   }
 
   console.log('✅ BOOKING VALIDATION PASSED');
-  console.log('   Final data to insert:', {
-    user_id, service_id, provider_id, date, time, address, notes, payment_method
-  });
+  console.log('   Requested service_id:', normalizedServiceId);
+  console.log('   Requested provider_id:', normalizedProviderId);
 
-  const sql = `INSERT INTO bookings (user_id, service_id, provider_id, date, time, address, notes, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-  const values = [user_id, service_id, provider_id, date, time, address, notes || '', payment_method || 'cod'];
-
-  console.log('🔍 EXECUTING SQL:', sql);
-  console.log('🔍 SQL VALUES:', values);
-
-  db.run(sql, values, function(err) {
-    if (err) {
-      console.error('❌ BOOKING INSERT FAILED:');
-      console.error('   Error message:', err.message);
-      console.error('   Error code:', err.code);
-      console.error('   SQL:', sql);
-      console.error('   Values:', values);
-
-      // Specific error handling
-      if (err.message.includes('FOREIGN KEY constraint failed')) {
-        if (err.message.includes('user_id')) {
-          return res.status(400).json({ message: 'Invalid user ID' });
-        }
-        if (err.message.includes('provider_id')) {
-          return res.status(400).json({ message: 'Invalid provider ID' });
-        }
-        if (err.message.includes('service_id')) {
-          return res.status(400).json({ message: 'Invalid service ID' });
-        }
-        return res.status(400).json({ message: 'Invalid foreign key reference' });
-      }
-
-      if (err.message.includes('UNIQUE constraint failed')) {
-        return res.status(400).json({ message: 'Duplicate booking' });
-      }
-
-      if (err.message.includes('no such table')) {
-        console.error('❌ CRITICAL: bookings table does not exist!');
-        return res.status(500).json({ message: 'Database schema error - bookings table missing' });
-      }
-
-      return res.status(500).json({
-        message: 'Database error creating booking',
-        error: err.message,
-        code: err.code
-      });
-    }
-
-    const bookingId = this.lastID;
-    console.log('✅ BOOKING INSERT SUCCESS - ID:', bookingId);
-
-    // Verify the booking was actually saved
-    db.get('SELECT * FROM bookings WHERE id = ?', [bookingId], (verifyErr, booking) => {
-      if (verifyErr) {
-        console.error('❌ BOOKING VERIFICATION FAILED:', verifyErr.message);
-        return res.status(500).json({ message: 'Booking verification failed' });
-      }
-
-      if (!booking) {
-        console.error('❌ BOOKING VERIFICATION FAILED - Booking not found after insert!');
-        return res.status(500).json({ message: 'Booking was not saved to database' });
-      }
-
-      console.log('✅ BOOKING VERIFICATION SUCCESS:', {
-        id: booking.id,
-        user_id: booking.user_id,
-        provider_id: booking.provider_id,
-        date: booking.date,
-        status: booking.status
-      });
-
-      // Save Notification to DB
-      const message = `New booking request from user ID ${user_id} on ${date} at ${time}.`;
-      db.run(`INSERT INTO notifications (user_id, content) VALUES (?, ?)`, [provider_id, message], (notifyErr) => {
-        if (notifyErr) {
-          console.error('❌ NOTIFICATION INSERT FAILED:', notifyErr.message);
-        } else {
-          console.log('✅ NOTIFICATION CREATED for provider:', provider_id);
-        }
-      });
-
-      // Emit Real-time Notification
-      if (req.io) {
-        console.log('📡 EMITTING SOCKET NOTIFICATION to provider:', provider_id);
-        req.io.emit('booking_notification', {
-          providerId: provider_id,
-          message: message,
-          timestamp: new Date()
-        });
-      } else {
-        console.warn('⚠️  Socket.io not available for notification');
-      }
-
-      res.status(201).json({
-        message: 'Booking created successfully',
-        booking: {
-          id: bookingId,
-          user_id,
-          service_id,
-          provider_id,
-          date,
-          time,
-          address,
-          notes,
-          payment_method,
-          status: 'pending'
-        }
-      });
+  const verifyProvider = () => new Promise((resolve, reject) => {
+    db.get(`SELECT id FROM users WHERE id = ? AND role = 'provider'`, [normalizedProviderId], (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
     });
   });
-});
+
+  const verifyService = () => new Promise((resolve, reject) => {
+    db.get(`SELECT id FROM services WHERE id = ?`, [normalizedServiceId], (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
+
+  const createBooking = async () => {
+    const providerRecord = await verifyProvider();
+    if (!providerRecord) {
+      console.error('❌ BOOKING VALIDATION FAILED - Provider does not exist:', normalizedProviderId);
+      return res.status(400).json({ message: 'Invalid provider ID' });
+    }
+
+    const serviceRecord = await verifyService();
+    if (!serviceRecord) {
+      console.error('❌ BOOKING VALIDATION FAILED - Service does not exist:', normalizedServiceId);
+      return res.status(400).json({ message: 'Invalid service ID' });
+    }
+
+    if (serviceRecord.provider_id !== normalizedProviderId) {
+      console.error('❌ BOOKING VALIDATION FAILED - Service/provider mismatch:', {
+        service_id: normalizedServiceId,
+        provider_id: normalizedProviderId,
+        service_provider_id: serviceRecord.provider_id
+      });
+      return res.status(400).json({ message: 'Selected service does not belong to this provider' });
+    }
+
+    const finalServiceId = normalizedServiceId;
+    console.log('   Final data to insert:', {
+      user_id,
+      service_id: finalServiceId,
+      provider_id: normalizedProviderId,
+      date,
+      time,
+      address,
+      notes,
+      payment_method
+    });
+
+    const sql = `INSERT INTO bookings (user_id, service_id, provider_id, date, time, address, notes, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const values = [user_id, finalServiceId, normalizedProviderId, date, time, address, notes || '', payment_method || 'cod'];
+
+    console.log('🔍 EXECUTING SQL:', sql);
+    console.log('🔍 SQL VALUES:', values);
+
+    db.run(sql, values, function(err) {
+      if (err) {
+        console.error('❌ BOOKING INSERT FAILED:');
+        console.error('   Error message:', err.message);
+        console.error('   Error code:', err.code);
+        console.error('   SQL:', sql);
+        console.error('   Values:', values);
+
+        // Specific error handling
+        if (err.message.includes('FOREIGN KEY constraint failed')) {
+          if (err.message.includes('user_id')) {
+            return res.status(400).json({ message: 'Invalid user ID' });
+          }
+          if (err.message.includes('provider_id')) {
+            return res.status(400).json({ message: 'Invalid provider ID' });
+          }
+          if (err.message.includes('service_id')) {
+            return res.status(400).json({ message: 'Invalid service ID' });
+          }
+          return res.status(400).json({ message: 'Invalid foreign key reference' });
+        }
+
+        if (err.message.includes('UNIQUE constraint failed')) {
+          return res.status(400).json({ message: 'Duplicate booking' });
+        }
+
+        if (err.message.includes('no such table')) {
+          console.error('❌ CRITICAL: bookings table does not exist!');
+          return res.status(500).json({ message: 'Database schema error - bookings table missing' });
+        }
+
+        return res.status(500).json({
+          message: 'Database error creating booking',
+          error: err.message,
+          code: err.code
+        });
+      }
+
+      const bookingId = this.lastID;
+      console.log('✅ BOOKING INSERT SUCCESS - ID:', bookingId);
+
+      // Verify the booking was actually saved
+      db.get('SELECT * FROM bookings WHERE id = ?', [bookingId], (verifyErr, booking) => {
+        if (verifyErr) {
+          console.error('❌ BOOKING VERIFICATION FAILED:', verifyErr.message);
+          return res.status(500).json({ message: 'Booking verification failed' });
+        }
+
+        if (!booking) {
+          console.error('❌ BOOKING VERIFICATION FAILED - Booking not found after insert!');
+          return res.status(500).json({ message: 'Booking was not saved to database' });
+        }
+
+        console.log('✅ BOOKING VERIFICATION SUCCESS:', {
+          id: booking.id,
+          user_id: booking.user_id,
+          provider_id: booking.provider_id,
+          date: booking.date,
+          status: booking.status
+        });
+
+        // Save Notification to DB
+        const message = `New booking request from user ID ${user_id} on ${date} at ${time}.`;
+        db.run(`INSERT INTO notifications (user_id, content) VALUES (?, ?)`, [provider_id, message], (notifyErr) => {
+          if (notifyErr) {
+            console.error('❌ NOTIFICATION INSERT FAILED:', notifyErr.message);
+          } else {
+            console.log('✅ NOTIFICATION CREATED for provider:', provider_id);
+          }
+        });
+
+        // Emit Real-time Notification
+        if (req.io) {
+          console.log('📡 EMITTING SOCKET NOTIFICATION to provider:', provider_id);
+          req.io.emit('booking_notification', {
+            providerId: provider_id,
+            message: message,
+            timestamp: new Date()
+          });
+        } else {
+          console.warn('⚠️  Socket.io not available for notification');
+        }
+
+        res.status(201).json({
+          message: 'Booking created successfully',
+          bookingId,
+          booking: {
+            id: bookingId,
+            user_id,
+            service_id: finalServiceId,
+            provider_id: normalizedProviderId,
+            date,
+            time,
+            address,
+            notes,
+            payment_method,
+            status: 'pending'
+          }
+        });
+      });
+    });
+  };
+
+  createBooking().catch((err) => {
+    console.error('❌ BOOKING PROCESS ERROR:', err.message);
+    res.status(500).json({ message: 'Server error during booking', error: err.message });
+  });
 
 // Update Booking Status (Generic) -> e.g. 'accepted', 'started', 'paid'
 router.put('/:id/status', authMiddleware, restrictTo('provider', 'admin', 'user'), (req, res) => {

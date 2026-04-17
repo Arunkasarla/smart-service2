@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ShieldAlert, ArrowRight, Lock, User, Mail, Key } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import API from '../../utils/api';
 
 const AdminLogin = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -22,10 +23,16 @@ const AdminLogin = () => {
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/admin/register';
     
     try {
-      const res = await fetch(`https://smart-service2.onrender.com${endpoint}`, {
+      const normalizedPayload = {
+        ...formData,
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password.trim()
+      };
+
+      const res = await fetch(`${API}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(normalizedPayload)
       });
       
       const data = await res.json();
@@ -39,7 +46,7 @@ const AdminLogin = () => {
            setError('This portal is strictly for Administrators.');
            return;
         }
-        login(data.user, data.token);
+        login(data.token, data.user);
         navigate('/admin');
       } else {
         setError(data.message);

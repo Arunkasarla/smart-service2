@@ -55,9 +55,12 @@ router.post('/register', upload.single('profile_photo'), async (req, res) => {
 
     db.run(sql, [name, email, phone, hashedPassword, userRole, category, providerExperience, profile_photo, newRefCode, initialBalance, referrerId], function (err) {
       if (err) {
-        console.error('Registration error:', err.message);
-        console.error('Error code:', err.code);
-        
+        console.error('❌ REGISTRATION FAILED - Database INSERT error:');
+        console.error('   Error message:', err.message);
+        console.error('   Error code:', err.code);
+        console.error('   SQL:', sql);
+        console.error('   Values:', [name, email, phone, '***HASHED***', userRole, category, providerExperience, profile_photo, newRefCode, initialBalance, referrerId]);
+
         // Better error handling
         if (err.message.includes('UNIQUE constraint failed: users.email')) {
           return res.status(400).json({ message: 'Email already exists' });
@@ -68,25 +71,53 @@ router.post('/register', upload.single('profile_photo'), async (req, res) => {
         if (err.message.includes('no such column')) {
           return res.status(500).json({ message: 'Database schema mismatch. Please contact support.' });
         }
-        
+
         return res.status(500).json({ message: 'Database error', error: err.message });
       }
 
-      const token = jwt.sign({ id: this.lastID, role: userRole }, JWT_SECRET, { expiresIn: '1d' });
-      res.status(201).json({ 
-        message: 'User registered successfully', 
-        token, 
-        user: { 
-          id: this.lastID, 
-          name, 
-          email, 
-          role: userRole, 
-          provider_category: category, 
-          experience: providerExperience, 
-          profile_photo, 
-          referral_code: newRefCode, 
-          wallet_balance: initialBalance 
-        } 
+      // ✅ INSERT succeeded - now verify the data was actually saved
+      const newUserId = this.lastID;
+      console.log('✅ REGISTRATION SUCCESS - User inserted with ID:', newUserId);
+
+      // Verify the user was actually saved by querying the database
+      db.get('SELECT id, name, email, role, referral_code, wallet_balance FROM users WHERE id = ?', [newUserId], (verifyErr, user) => {
+        if (verifyErr) {
+          console.error('❌ VERIFICATION FAILED - Could not verify user was saved:', verifyErr.message);
+          return res.status(500).json({ message: 'Registration verification failed' });
+        }
+
+        if (!user) {
+          console.error('❌ VERIFICATION FAILED - User not found after INSERT!');
+          console.error('   Expected ID:', newUserId);
+          console.error('   This indicates a database persistence issue!');
+          return res.status(500).json({ message: 'User registration failed - data not saved' });
+        }
+
+        console.log('✅ VERIFICATION SUCCESS - User confirmed in database:');
+        console.log('   ID:', user.id);
+        console.log('   Name:', user.name);
+        console.log('   Email:', user.email);
+        console.log('   Role:', user.role);
+        console.log('   Referral Code:', user.referral_code);
+        console.log('   Wallet Balance:', user.wallet_balance);
+
+        const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
+
+        res.status(201).json({
+          message: 'User registered successfully',
+          token,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            provider_category: category,
+            experience: providerExperience,
+            profile_photo,
+            referral_code: user.referral_code,
+            wallet_balance: user.wallet_balance
+          }
+        });
       });
     });
   } catch (error) {

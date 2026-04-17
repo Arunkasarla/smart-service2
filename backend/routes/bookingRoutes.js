@@ -50,7 +50,7 @@ router.post('/', authMiddleware, restrictTo('user'), (req, res) => {
   });
 
   const verifyService = () => new Promise((resolve, reject) => {
-    db.get(`SELECT id FROM services WHERE id = ?`, [normalizedServiceId], (err, row) => {
+    db.get(`SELECT id, provider_id FROM services WHERE id = ?`, [normalizedServiceId], (err, row) => {
       if (err) return reject(err);
       resolve(row);
     });
@@ -203,6 +203,7 @@ router.post('/', authMiddleware, restrictTo('user'), (req, res) => {
     console.error('❌ BOOKING PROCESS ERROR:', err.message);
     res.status(500).json({ message: 'Server error during booking', error: err.message });
   });
+});
 
 // Update Booking Status (Generic) -> e.g. 'accepted', 'started', 'paid'
 router.put('/:id/status', authMiddleware, restrictTo('provider', 'admin', 'user'), (req, res) => {

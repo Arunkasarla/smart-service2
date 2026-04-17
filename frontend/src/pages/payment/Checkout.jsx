@@ -48,13 +48,16 @@ const Checkout = () => {
                const data = await res.json();
                    const bookingId = data.bookingId || data.booking?.id;
                    await fetch(`${API}/api/bookings/${bookingId}/status`, {
-                       'Authorization': `Bearer ${token}`
-                   },
-                   body: JSON.stringify({ status: 'paid' })
-               });
-               
-               setLoading(false);
-               navigate('/success', { state: { service } });
+                       method: 'PUT',
+                       headers: {
+                           'Content-Type': 'application/json',
+                           'Authorization': `Bearer ${token}`
+                       },
+                       body: JSON.stringify({ status: 'paid' })
+                   });
+                   
+                   setLoading(false);
+                   navigate('/success', { state: { service } });
            } else {
                alert("Payment processed but Booking Failed to save. Contact support.");
                setLoading(false);

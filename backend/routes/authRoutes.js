@@ -19,39 +19,78 @@ router.post('/register', upload.single('profile_photo'), async (req, res) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newRefCode = `REF-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-    const sql = `INSERT INTO users (name, email, phone, password, role, provider_category, experience, profile_photo, referral_code, wallet_balance, referred_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const newRefCode = `REF-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
     const userRole = role === 'provider' ? 'provider' : 'user';
     const category = userRole === 'provider' ? (provider_category || 'electrician') : null;
     const providerExperience = userRole === 'provider' ? (parseInt(experience) || 0) : null;
 
-    // Check optional referral_code to credit both
+    // Handle referral logic
     let referrerId = null;
     let initialBalance = 0;
     if (referral_code) {
+      try {
         const referrer = await new Promise((resolve) => {
-            db.get(`SELECT id FROM users WHERE referral_code = ?`, [referral_code], (err, row) => resolve(row));
+          db.get(`SELECT id FROM users WHERE referral_code = ?`, [referral_code], (err, row) => resolve(row));
         });
         if (referrer) {
-            referrerId = referrer.id;
-            initialBalance = 50; // User requested 50 rs dummy money
-            db.run(`UPDATE users SET wallet_balance = wallet_balance + 50 WHERE id = ?`, [referrerId]);
+          referrerId = referrer.id;
+          initialBalance = 50;
+          // Update referrer's balance
+          await new Promise((resolve, reject) => {
+            db.run(`UPDATE users SET wallet_balance = wallet_balance + 50 WHERE id = ?`, [referrerId], (err) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          });
         }
+      } catch (refErr) {
+        console.error('Referral processing error:', refErr.message);
+      }
     }
+
+    // Insert with minimal required columns first, then optional ones
+    const sql = `INSERT INTO users 
+      (name, email, phone, password, role, provider_category, experience, profile_photo, referral_code, wallet_balance, referred_by) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     db.run(sql, [name, email, phone, hashedPassword, userRole, category, providerExperience, profile_photo, newRefCode, initialBalance, referrerId], function (err) {
       if (err) {
-        console.error('sign up error:', err.message);
-        if (err.message.includes('UNIQUE')) {
+        console.error('Registration error:', err.message);
+        console.error('Error code:', err.code);
+        
+        // Better error handling
+        if (err.message.includes('UNIQUE constraint failed: users.email')) {
           return res.status(400).json({ message: 'Email already exists' });
         }
+        if (err.message.includes('UNIQUE constraint failed: users.referral_code')) {
+          return res.status(500).json({ message: 'Referral code generation error. Please try again.' });
+        }
+        if (err.message.includes('no such column')) {
+          return res.status(500).json({ message: 'Database schema mismatch. Please contact support.' });
+        }
+        
         return res.status(500).json({ message: 'Database error', error: err.message });
       }
 
       const token = jwt.sign({ id: this.lastID, role: userRole }, JWT_SECRET, { expiresIn: '1d' });
-      res.status(201).json({ message: 'User registered successfully', token, user: { id: this.lastID, name, email, role: userRole, provider_category: category, experience: providerExperience, profile_photo, referral_code: newRefCode, wallet_balance: initialBalance } });
+      res.status(201).json({ 
+        message: 'User registered successfully', 
+        token, 
+        user: { 
+          id: this.lastID, 
+          name, 
+          email, 
+          role: userRole, 
+          provider_category: category, 
+          experience: providerExperience, 
+          profile_photo, 
+          referral_code: newRefCode, 
+          wallet_balance: initialBalance 
+        } 
+      });
     });
   } catch (error) {
+    console.error('Server error during registration:', error.message);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

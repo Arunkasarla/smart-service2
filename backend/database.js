@@ -13,31 +13,39 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 function initDb() {
   db.serialize(() => {
-    // Users table
+    // Users table - Comprehensive schema
     db.run(`CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      email TEXT UNIQUE,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
       phone TEXT,
-      password TEXT,
+      password TEXT NOT NULL,
       role TEXT DEFAULT 'user',
       provider_category TEXT,
       location TEXT,
       lat REAL,
-      lng REAL
-    )`);
+      lng REAL,
+      profile_photo TEXT,
+      experience INTEGER DEFAULT 0,
+      is_banned BOOLEAN DEFAULT 0,
+      referral_code TEXT UNIQUE,
+      wallet_balance REAL DEFAULT 0,
+      referred_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
+      if (err && !err.message.includes('already exists')) {
+        console.error('Error creating users table:', err);
+      }
+    });
 
     // Self-healing migrations for existing V1/V2 users
-    db.run(`ALTER TABLE users ADD COLUMN provider_category TEXT`, (err) => { /* Ignore if it already exists */ });
-    db.run(`ALTER TABLE users ADD COLUMN location TEXT`, (err) => { /* Ignore if it already exists */ });
-    db.run(`ALTER TABLE users ADD COLUMN lat REAL`, (err) => { /* Ignore if it already exists */ });
-    db.run(`ALTER TABLE users ADD COLUMN lng REAL`, (err) => { /* Ignore if it already exists */ });
     db.run(`ALTER TABLE users ADD COLUMN profile_photo TEXT`, (err) => { /* Ignore if it already exists */ });
     db.run(`ALTER TABLE users ADD COLUMN experience INTEGER DEFAULT 0`, (err) => { /* Ignore if it already exists */ });
     db.run(`ALTER TABLE users ADD COLUMN is_banned BOOLEAN DEFAULT 0`, (err) => { /* Ignore if it already exists */ });
     db.run(`ALTER TABLE users ADD COLUMN referral_code TEXT UNIQUE`, (err) => { /* Ignore if it already exists */ });
     db.run(`ALTER TABLE users ADD COLUMN wallet_balance REAL DEFAULT 0`, (err) => { /* Ignore if it already exists */ });
     db.run(`ALTER TABLE users ADD COLUMN referred_by INTEGER`, (err) => { /* Ignore if it already exists */ });
+    db.run(`ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`, (err) => { /* Ignore if it already exists */ });
 
     // Self-healing migrations for existing V1/V2 bookings
     db.run(`ALTER TABLE bookings ADD COLUMN payment_method TEXT DEFAULT 'cash'`, (err) => { /* Ignore if already exists */});

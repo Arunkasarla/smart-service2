@@ -42,8 +42,40 @@ app.use((req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
-app.use(express.json()); 
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      'http://localhost:5173',  // Vite dev server
+      'http://localhost:3000',  // Alternative dev port
+      'https://smart-service2.vercel.app',  // Production Vercel URL
+      'https://smart-service2.onrender.com',  // Render backend (for internal calls)
+      /^https:\/\/smart-service2-.*\.vercel\.app$/  // Vercel preview deployments
+    ];
+
+    // Check if origin matches any allowed pattern
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return allowed === origin;
+      }
+      return allowed.test(origin);
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn('🚫 CORS BLOCKED - Origin not allowed:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions)); 
 app.use('/uploads', express.static('uploads')); // Host images publicly 
 
 // Routes

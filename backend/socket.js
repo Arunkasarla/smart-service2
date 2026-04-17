@@ -5,8 +5,34 @@ const db = require('./database');
 function initSocket(server) {
   const io = new Server(server, {
     cors: {
-      origin: ["http://localhost:5173", "http://localhost:3000"],
-      methods: ["GET", "POST"]
+      origin: function (origin, callback) {
+        // Allow requests with no origin
+        if (!origin) return callback(null, true);
+
+        const allowedOrigins = [
+          'http://localhost:5173',  // Vite dev server
+          'http://localhost:3000',  // Alternative dev port
+          'https://smart-service2.vercel.app',  // Production Vercel URL
+          'https://smart-service2.onrender.com',  // Render backend
+          /^https:\/\/smart-service2-.*\.vercel\.app$/  // Vercel preview deployments
+        ];
+
+        const isAllowed = allowedOrigins.some(allowed => {
+          if (typeof allowed === 'string') {
+            return allowed === origin;
+          }
+          return allowed.test(origin);
+        });
+
+        if (isAllowed) {
+          callback(null, true);
+        } else {
+          console.warn('🚫 Socket CORS BLOCKED - Origin not allowed:', origin);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
+      methods: ['GET', 'POST'],
+      credentials: true
     }
   });
 

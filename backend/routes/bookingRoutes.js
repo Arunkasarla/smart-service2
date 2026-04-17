@@ -7,27 +7,144 @@ const router = express.Router();
 
 // User: Create a booking
 router.post('/', authMiddleware, restrictTo('user'), (req, res) => {
+  console.log('📝 BOOKING REQUEST RECEIVED');
+  console.log('   User ID:', req.user?.id);
+  console.log('   Request Body:', JSON.stringify(req.body, null, 2));
+
   const { service_id, provider_id, date, time, address, notes, payment_method } = req.body;
   const user_id = req.user.id;
 
-  const sql = `INSERT INTO bookings (user_id, service_id, provider_id, date, time, address, notes, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-  db.run(sql, [user_id, service_id, provider_id, date, time, address, notes || '', payment_method || 'cod'], function(err) {
-    if (err) return res.status(500).json({ message: 'Error creating booking' });
-    
-    // Save Notification to DB
-    const message = `New booking request from user ID ${user_id} on ${date} at ${time}.`;
-    db.run(`INSERT INTO notifications (user_id, content) VALUES (?, ?)`, [provider_id, message]);
+  // Validate required fields
+  const requiredFields = { service_id, provider_id, date, time, address };
+  const missingFields = Object.entries(requiredFields)
+    .filter(([key, value]) => value === undefined || value === null || value === '')
+    .map(([key]) => key);
 
-    // Emit Real-time Notification
-    if (req.io) {
-      req.io.emit('booking_notification', {
-        providerId: provider_id,
-        message: message,
-        timestamp: new Date()
+  if (missingFields.length > 0) {
+    console.error('❌ BOOKING VALIDATION FAILED - Missing fields:', missingFields);
+    return res.status(400).json({
+      message: 'Missing required fields',
+      missingFields,
+      receivedFields: Object.keys(req.body)
+    });
+  }
+
+  // Validate data types
+  if (isNaN(service_id) || isNaN(provider_id)) {
+    console.error('❌ BOOKING VALIDATION FAILED - Invalid IDs:', { service_id, provider_id });
+    return res.status(400).json({ message: 'service_id and provider_id must be valid numbers' });
+  }
+
+  console.log('✅ BOOKING VALIDATION PASSED');
+  console.log('   Final data to insert:', {
+    user_id, service_id, provider_id, date, time, address, notes, payment_method
+  });
+
+  const sql = `INSERT INTO bookings (user_id, service_id, provider_id, date, time, address, notes, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+  const values = [user_id, service_id, provider_id, date, time, address, notes || '', payment_method || 'cod'];
+
+  console.log('🔍 EXECUTING SQL:', sql);
+  console.log('🔍 SQL VALUES:', values);
+
+  db.run(sql, values, function(err) {
+    if (err) {
+      console.error('❌ BOOKING INSERT FAILED:');
+      console.error('   Error message:', err.message);
+      console.error('   Error code:', err.code);
+      console.error('   SQL:', sql);
+      console.error('   Values:', values);
+
+      // Specific error handling
+      if (err.message.includes('FOREIGN KEY constraint failed')) {
+        if (err.message.includes('user_id')) {
+          return res.status(400).json({ message: 'Invalid user ID' });
+        }
+        if (err.message.includes('provider_id')) {
+          return res.status(400).json({ message: 'Invalid provider ID' });
+        }
+        if (err.message.includes('service_id')) {
+          return res.status(400).json({ message: 'Invalid service ID' });
+        }
+        return res.status(400).json({ message: 'Invalid foreign key reference' });
+      }
+
+      if (err.message.includes('UNIQUE constraint failed')) {
+        return res.status(400).json({ message: 'Duplicate booking' });
+      }
+
+      if (err.message.includes('no such table')) {
+        console.error('❌ CRITICAL: bookings table does not exist!');
+        return res.status(500).json({ message: 'Database schema error - bookings table missing' });
+      }
+
+      return res.status(500).json({
+        message: 'Database error creating booking',
+        error: err.message,
+        code: err.code
       });
     }
 
-    res.status(201).json({ message: 'Booking created successfully', id: this.lastID });
+    const bookingId = this.lastID;
+    console.log('✅ BOOKING INSERT SUCCESS - ID:', bookingId);
+
+    // Verify the booking was actually saved
+    db.get('SELECT * FROM bookings WHERE id = ?', [bookingId], (verifyErr, booking) => {
+      if (verifyErr) {
+        console.error('❌ BOOKING VERIFICATION FAILED:', verifyErr.message);
+        return res.status(500).json({ message: 'Booking verification failed' });
+      }
+
+      if (!booking) {
+        console.error('❌ BOOKING VERIFICATION FAILED - Booking not found after insert!');
+        return res.status(500).json({ message: 'Booking was not saved to database' });
+      }
+
+      console.log('✅ BOOKING VERIFICATION SUCCESS:', {
+        id: booking.id,
+        user_id: booking.user_id,
+        provider_id: booking.provider_id,
+        date: booking.date,
+        status: booking.status
+      });
+
+      // Save Notification to DB
+      const message = `New booking request from user ID ${user_id} on ${date} at ${time}.`;
+      db.run(`INSERT INTO notifications (user_id, content) VALUES (?, ?)`, [provider_id, message], (notifyErr) => {
+        if (notifyErr) {
+          console.error('❌ NOTIFICATION INSERT FAILED:', notifyErr.message);
+        } else {
+          console.log('✅ NOTIFICATION CREATED for provider:', provider_id);
+        }
+      });
+
+      // Emit Real-time Notification
+      if (req.io) {
+        console.log('📡 EMITTING SOCKET NOTIFICATION to provider:', provider_id);
+        req.io.emit('booking_notification', {
+          providerId: provider_id,
+          message: message,
+          timestamp: new Date()
+        });
+      } else {
+        console.warn('⚠️  Socket.io not available for notification');
+      }
+
+      res.status(201).json({
+        message: 'Booking created successfully',
+        booking: {
+          id: bookingId,
+          user_id,
+          service_id,
+          provider_id,
+          date,
+          time,
+          address,
+          notes,
+          payment_method,
+          status: 'pending'
+        }
+      });
+    });
   });
 });
 

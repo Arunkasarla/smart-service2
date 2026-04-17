@@ -75,7 +75,12 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
 };
 
-app.use(cors(corsOptions)); 
+app.use(cors(corsOptions));
+
+// Body parser middleware - REQUIRED for JSON requests
+app.use(express.json({ limit: '10mb' })); // Parse JSON bodies
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+
 app.use('/uploads', express.static('uploads')); // Host images publicly 
 
 // Routes

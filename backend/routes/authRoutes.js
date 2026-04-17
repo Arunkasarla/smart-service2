@@ -127,27 +127,164 @@ router.post('/register', upload.single('profile_photo'), async (req, res) => {
 });
 
 // Login User
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
+  console.log('🔐 LOGIN ATTEMPT RECEIVED');
+  console.log('   Request Body:', JSON.stringify(req.body, null, 2));
+  console.log('   Headers:', {
+    'content-type': req.headers['content-type'],
+    'user-agent': req.headers['user-agent'],
+    'origin': req.headers['origin']
+  });
+
   const { email, password } = req.body;
 
+  // Validate input
   if (!email || !password) {
+    console.log('❌ LOGIN VALIDATION FAILED - Missing fields');
+    console.log('   Email provided:', !!email);
+    console.log('   Password provided:', !!password);
     return res.status(400).json({ message: 'Please provide email and password' });
   }
 
-  db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
-    if (err) return res.status(500).json({ message: 'Database error' });
-    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+  console.log('✅ LOGIN VALIDATION PASSED');
+  console.log('   Email:', email);
+  console.log('   Password length:', password.length);
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+  try {
+    // Check database connection first
+    console.log('🔍 CHECKING DATABASE CONNECTION...');
+    db.run('SELECT 1', (testErr) => {
+      if (testErr) {
+        console.error('❌ DATABASE CONNECTION TEST FAILED:', testErr.message);
+        return res.status(500).json({ message: 'Database connection error' });
+      }
 
-    if (user.is_banned === 1) {
-        return res.status(403).json({ message: 'Account Terminated: You have been permanently banned by the Admin.' });
-    }
+      console.log('✅ DATABASE CONNECTION OK');
 
-    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
-    res.json({ message: 'Login successful', token, user: { id: user.id, name: user.name, email: user.email, role: user.role, referral_code: user.referral_code, wallet_balance: user.wallet_balance } });
-  });
+      // Now perform the actual login query
+      console.log('🔍 EXECUTING USER LOOKUP QUERY...');
+      const sql = `SELECT id, name, email, password, role, referral_code, wallet_balance, is_banned FROM users WHERE email = ?`;
+      console.log('   SQL:', sql);
+      console.log('   Email parameter:', email);
+
+      db.get(sql, [email], async (err, user) => {
+        if (err) {
+          console.error('❌ DATABASE QUERY ERROR:');
+          console.error('   Error message:', err.message);
+          console.error('   Error code:', err.code);
+          console.error('   SQL:', sql);
+          console.error('   Parameters:', [email]);
+
+          if (err.message.includes('no such table')) {
+            console.error('❌ CRITICAL: users table does not exist!');
+            return res.status(500).json({ message: 'Database schema error - users table missing' });
+          }
+
+          return res.status(500).json({ message: 'Database error during login' });
+        }
+
+        console.log('✅ DATABASE QUERY COMPLETED');
+        console.log('   User found:', !!user);
+
+        if (!user) {
+          console.log('❌ USER NOT FOUND');
+          console.log('   Searched for email:', email);
+          console.log('   This could mean:');
+          console.log('   - User never registered');
+          console.log('   - User data was lost (database persistence issue)');
+          console.log('   - Email case sensitivity issue');
+
+          // Check if any users exist at all
+          db.get('SELECT COUNT(*) as count FROM users', (countErr, result) => {
+            if (!countErr) {
+              console.log('   Total users in database:', result.count);
+            }
+          });
+
+          return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        console.log('✅ USER FOUND IN DATABASE:');
+        console.log('   ID:', user.id);
+        console.log('   Name:', user.name);
+        console.log('   Email:', user.email);
+        console.log('   Role:', user.role);
+        console.log('   Is Banned:', user.is_banned);
+        console.log('   Password hash exists:', !!user.password);
+        console.log('   Password hash length:', user.password ? user.password.length : 0);
+
+        // Check if user is banned
+        if (user.is_banned === 1) {
+          console.log('❌ USER IS BANNED');
+          return res.status(403).json({ message: 'Account Terminated: You have been permanently banned by the Admin.' });
+        }
+
+        // Verify password
+        console.log('🔐 STARTING PASSWORD VERIFICATION...');
+        console.log('   Plain password length:', password.length);
+        console.log('   Hashed password length:', user.password.length);
+
+        try {
+          const isMatch = await bcrypt.compare(password, user.password);
+          console.log('✅ PASSWORD COMPARISON COMPLETED');
+          console.log('   Password match result:', isMatch);
+
+          if (!isMatch) {
+            console.log('❌ PASSWORD MISMATCH');
+            console.log('   Possible causes:');
+            console.log('   - Wrong password entered');
+            console.log('   - Password hashing inconsistency');
+            console.log('   - Database corruption');
+            return res.status(401).json({ message: 'Invalid credentials' });
+          }
+
+          console.log('✅ PASSWORD VERIFICATION SUCCESSFUL');
+
+          // Generate JWT token
+          console.log('🎫 GENERATING JWT TOKEN...');
+          const tokenPayload = { id: user.id, role: user.role };
+          console.log('   Token payload:', tokenPayload);
+
+          const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '1d' });
+          console.log('✅ JWT TOKEN GENERATED');
+          console.log('   Token length:', token.length);
+          console.log('   Token starts with:', token.substring(0, 20) + '...');
+
+          // Prepare response user object (exclude password)
+          const responseUser = {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            referral_code: user.referral_code,
+            wallet_balance: user.wallet_balance
+          };
+
+          console.log('📤 SENDING LOGIN SUCCESS RESPONSE');
+          console.log('   Response user object:', responseUser);
+
+          res.json({
+            message: 'Login successful',
+            token,
+            user: responseUser
+          });
+
+        } catch (bcryptErr) {
+          console.error('❌ BCRYPT COMPARISON ERROR:', bcryptErr.message);
+          console.error('   This could mean:');
+          console.error('   - bcrypt library issue');
+          console.error('   - Corrupted password hash in database');
+          console.error('   - Memory/timeout issue');
+          return res.status(500).json({ message: 'Password verification error' });
+        }
+      });
+    });
+
+  } catch (serverErr) {
+    console.error('❌ UNEXPECTED SERVER ERROR DURING LOGIN:', serverErr.message);
+    console.error('   Stack trace:', serverErr.stack);
+    return res.status(500).json({ message: 'Server error during login' });
+  }
 });
 // Admin Registration (High Security)
 router.post('/admin/register', async (req, res) => {

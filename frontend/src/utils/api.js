@@ -1,3 +1,3 @@
-const API = import.meta.env.VITE_API_URL;
+const API = "https://smart-service2.onrender.com";
 
 export default API;

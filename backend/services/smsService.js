@@ -2,19 +2,24 @@ const Twilio = require('twilio');
 const fetch = global.fetch;
 
 const {
+  TWILIO_SID,
   TWILIO_ACCOUNT_SID,
   TWILIO_AUTH_TOKEN,
+  TWILIO_PHONE,
   TWILIO_FROM,
   FAST2SMS_API_KEY,
   FAST2SMS_SENDER,
 } = process.env;
 
+const accountSid = TWILIO_SID || TWILIO_ACCOUNT_SID;
+const fromPhone = TWILIO_PHONE || TWILIO_FROM;
+
 async function sendInvoiceSms(to, body) {
-  if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM) {
-    const client = Twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+  if (accountSid && TWILIO_AUTH_TOKEN && fromPhone) {
+    const client = Twilio(accountSid, TWILIO_AUTH_TOKEN);
     return client.messages.create({
       body,
-      from: TWILIO_FROM,
+      from: fromPhone,
       to,
     });
   }

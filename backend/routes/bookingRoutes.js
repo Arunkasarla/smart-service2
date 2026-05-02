@@ -3,6 +3,8 @@ const { authMiddleware, restrictTo } = require('../middleware/auth');
 const db = require('../database');
 const upload = require('../multerConfig');
 const { createInvoiceForBooking } = require('../controllers/invoiceController');
+const { sendInvoiceEmail } = require('../services/emailService');
+const { sendInvoiceSms } = require('../services/smsService');
 const router = express.Router();
 
 // ─── User: Create a Booking ───────────────────────────────────────────────────
@@ -104,14 +106,51 @@ router.post('/', authMiddleware, restrictTo('user'), (req, res) => {
         const bookingId = this.lastID;
         console.log('✅ BOOKING INSERTED - ID:', bookingId);
 
-        // Verify saved
-        db.get('SELECT * FROM bookings WHERE id = ?', [bookingId], (verifyErr, booking) => {
+        // Verify saved and get user details for notification
+        const verifySql = `
+          SELECT b.*, u.name as user_name, u.email as user_email, u.phone as user_phone
+          FROM bookings b
+          JOIN users u ON b.user_id = u.id
+          WHERE b.id = ?
+        `;
+        db.get(verifySql, [bookingId], async (verifyErr, booking) => {
           if (verifyErr || !booking) {
             console.error('❌ Booking verification failed');
             return res.status(500).json({ message: 'Booking verification failed after insert' });
           }
 
           console.log('✅ Booking verified in DB:', booking.id);
+
+          const serviceName = providerRecord.provider_category ? 
+            providerRecord.provider_category.charAt(0).toUpperCase() + providerRecord.provider_category.slice(1) : 'Service';
+          const amount = 500; // Expected amount example
+
+          // ─── 1. Send Email Notification ───────────────────────────────────────
+          if (booking.user_email) {
+            try {
+              await sendInvoiceEmail({
+                to: booking.user_email,
+                subject: 'Booking Confirmation - Smart Service',
+                text: `Hello ${booking.user_name},\n\nYour booking is confirmed.\n\nService: ${serviceName}\nDate: ${date}\nTime: ${time}\nAmount: ₹${amount}\n\nThank you for choosing Smart Service!`
+              });
+              console.log('✅ Email sent successfully to:', booking.user_email);
+            } catch (err) {
+              console.error('⚠️ Failed to send email (Skipping safely):', err.message);
+            }
+          }
+
+          // ─── 2. Send SMS Notification ─────────────────────────────────────────
+          if (booking.user_phone) {
+            try {
+              await sendInvoiceSms(
+                booking.user_phone,
+                `Your booking is confirmed. Service: ${serviceName}, Date: ${date}, Amount: ₹${amount}`
+              );
+              console.log('✅ SMS sent successfully to:', booking.user_phone);
+            } catch (err) {
+              console.error('⚠️ Failed to send SMS (Skipping safely):', err.message);
+            }
+          }
 
           // Notify provider
           const notifMsg = `New booking from user #${user_id} on ${date} at ${time}.`;

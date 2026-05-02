@@ -307,26 +307,6 @@ router.get('/requests', authMiddleware, restrictTo('provider'), (req, res) => {
   });
 });
 
-// Get single booking for the logged-in user
-router.get('/:id', authMiddleware, restrictTo('user'), (req, res) => {
-  const sql = `
-    SELECT b.*, 'Professional ' || u.provider_category as service_title, u.name as provider_name, u.lat as provider_lat, u.lng as provider_lng
-    FROM bookings b
-    LEFT JOIN users u ON b.provider_id = u.id
-    WHERE b.id = ? AND b.user_id = ?`;
-
-  db.get(sql, [req.params.id, req.user.id], (err, row) => {
-    if (err) {
-      console.error('GET /:id SQL Error:', err.message);
-      return res.status(500).json({ message: 'Database error', detail: err.message });
-    }
-    if (!row) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-    res.json(row);
-  });
-});
-
 // Admin: Get all platform bookings
 router.get('/all', authMiddleware, restrictTo('admin'), (req, res) => {
   const sql = `
@@ -384,6 +364,26 @@ router.get('/export', authMiddleware, restrictTo('admin'), (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="smartservice-data.csv"');
     res.send(csvData);
+  });
+});
+
+// Get single booking for the logged-in user
+router.get('/:id', authMiddleware, restrictTo('user'), (req, res) => {
+  const sql = `
+    SELECT b.*, 'Professional ' || u.provider_category as service_title, u.name as provider_name, u.lat as provider_lat, u.lng as provider_lng
+    FROM bookings b
+    LEFT JOIN users u ON b.provider_id = u.id
+    WHERE b.id = ? AND b.user_id = ?`;
+
+  db.get(sql, [req.params.id, req.user.id], (err, row) => {
+    if (err) {
+      console.error('GET /:id SQL Error:', err.message);
+      return res.status(500).json({ message: 'Database error', detail: err.message });
+    }
+    if (!row) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    res.json(row);
   });
 });
 

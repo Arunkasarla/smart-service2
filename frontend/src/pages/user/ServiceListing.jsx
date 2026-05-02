@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import API from '../../utils/api';
 import { Search, MapPin, Star, Filter, ShieldCheck, Zap, MapIcon, ListIcon, Mic, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
@@ -33,11 +34,11 @@ const ServiceListing = () => {
   const fetchServices = async (overrideQuery = query) => {
     setLoading(true);
     try {
-      let url = `https://smart-service2.onrender.com/api/services/search`;
+      let url = `${API}/api/services/search`;
       if (category || overrideQuery) {
          url += `?category=${category}&query=${overrideQuery}`;
       } else {
-         url = `https://smart-service2.onrender.com/api/services`;
+         url = `${API}/api/services`;
       }
 
       const res = await fetch(url);
@@ -59,7 +60,7 @@ const ServiceListing = () => {
 
   const fetchRecommended = async () => {
      try {
-       const res = await fetch('https://smart-service2.onrender.com/api/services/recommended');
+       const res = await fetch(`${API}/api/services/recommended`);
        const data = await res.json();
        if (Array.isArray(data)) setRecommended(data);
      } catch(err) { console.error(err); }

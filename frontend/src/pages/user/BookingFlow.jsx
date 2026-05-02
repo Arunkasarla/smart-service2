@@ -129,7 +129,7 @@ const BookingFlow = () => {
           <img src={service.image} alt="" className="w-16 h-16 rounded object-cover shadow-sm" />
           <div className="flex-1">
             <h3 className="font-bold text-lg text-main">{service.title}</h3>
-            <p className="text-sm text-muted">Provider: {service.title} • {service.experience} Yrs Exp</p>
+            <p className="text-sm text-muted">Category: {service.category} • {service.experience} Yrs Exp</p>
           </div>
           <div className="font-bold text-2xl text-primary">₹{service.price}</div>
         </div>
